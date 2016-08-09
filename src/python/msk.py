@@ -331,10 +331,10 @@ def conelp(c, G, h, dims=None, taskfile=None):
     else: 
         raise TypeError("'G' must be a matrix")
 
-    if min(dims['q'])<1: raise TypeError(
+    if len(dims['q']) and min(dims['q'])<1: raise TypeError(
         "dimensions of quadratic cones must be positive")
 
-    if min(dims['s'])<1: raise TypeError(
+    if len(dims['s']) and min(dims['s'])<1: raise TypeError(
         "dimensions of semidefinite cones must be positive")
 
     bkc = n*[ mosek.boundkey.fx ] 
