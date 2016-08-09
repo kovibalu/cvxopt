@@ -35,7 +35,7 @@ inf = 0.0
 
 options = {}
 
-def lp(c, G, h, A=None, b=None):
+def lp(c, G, h, A=None, b=None, taskfile=None):
     """
     Solves a pair of primal and dual LPs 
 
@@ -55,6 +55,8 @@ def lp(c, G, h, A=None, b=None):
         matrices with one column.  The default values for A and b are 
         empty matrices with zero rows.
 
+        Optionally, the interface can write a .task file, required for
+        support questions on the MOSEK solver.
 
     Return values
 
@@ -157,6 +159,9 @@ def lp(c, G, h, A=None, b=None):
 
     task.putobjsense(mosek.objsense.minimize)
 
+    if taskfile:
+        task.writetask(taskfile)
+
     task.optimize()
 
     task.solutionsummary (mosek.streamtype.msg); 
@@ -184,12 +189,7 @@ def lp(c, G, h, A=None, b=None):
         return (solsta, x, z, y)
 
 
-def _ind2sub(indices, n):
-    r=[i/n for i in indices]
-    c=[i%n for i in indices]
-    return(r,c)
-
-def conelp(c, G, h, dims = None):
+def conelp(c, G, h, dims=None, taskfile=None):
     """
     Solves a pair of primal and dual SOCPs
 
@@ -204,59 +204,68 @@ def conelp(c, G, h, dims = None):
     using MOSEK 8.0.   
 
     The inequalities are with respect to a cone C defined as the Cartesian
-    product of Nq + Ns + 1 cones:
+    product of N + M + 1 cones:
     
-        C = C_0 x C_1 x .... x C_{Nq} x C_{Nq+1} x .... x C_{Nq+Ns+1}.
+        C = C_0 x C_1 x .... x C_N x C_{N+1} x ... x C_{N+M}.
 
     The first cone C_0 is the nonnegative orthant of dimension ml.
-    The next cones are second order cones of dimension mq[0], ..., 
-    mq[Nq-1].  The second order cone of dimension m is defined as
+    The next N cones are second order cones of dimension mq[0], ..., 
+    mq[N-1].  The second order cone of dimension m is defined as
     
         { (u0, u1) in R x R^{m-1} | u0 >= ||u1||_2 }.
-        
-    The last cones are cones of symmetric semidefinite matrices of 
-    dimension ms[0], ..., ms[Ns-1]. The cone of symmetric semidefinite 
-    matrices of dimension m is defined as
-    
-        { X in R^{m x m} | X = X' and z'*X*z >= 0 for all z in R^m }.
-        
 
-    The formats of G and h are identical to that used in solvers.conelp(), 
-    except that only componentwise and second order cone inequalities are 
-    (dims['s'] must be zero, if defined).
+    The next M cones are positive semidefinite cones of order ms[0], ...,
+    ms[M-1] >= 0.  
+       
+    The formats of G and h are identical to that used in solvers.conelp().
+
 
     Input arguments.
-   
+
         c is a dense 'd' matrix of size (n,1).
 
         dims is a dictionary with the dimensions of the components of C.  
         It has three fields.
         - dims['l'] = ml, the dimension of the nonnegative orthant C_0.
           (ml >= 0.)
-        - dims['q'] = mq = [ mq[0], mq[1], ..., mq[Ns-1] ], a list of N 
+        - dims['q'] = mq = [ mq[0], mq[1], ..., mq[N-1] ], a list of N 
           integers with the dimensions of the second order cones C_1, ..., 
-          C_Nq.  (Nq >= 0 and mq[k] >= 1.)
-        - dims['s'] = ms = [ ms[0], ms[1], ..., ms[Ns-1] ], a list of N 
-          integers with the dimensions of the semidefinite cones 
-          C_{Nq+1}, ..., C_{Nq+Ns+1}.  (Nq, Ns >= 0 and ms[k] >= 1.)
+          C_N.  (N >= 0 and mq[k] >= 1.)
+        - dims['s'] = ms = [ ms[0], ms[1], ..., ms[M-1] ], a list of M  
+          integers with the orders of the semidefinite cones C_{N+1}, ...,
+          C_{N+M}.  (M >= 0 and ms[k] >= 0.)
         The default value of dims is {'l': G.size[0], 'q': [], 's': []}.
 
         G is a dense or sparse 'd' matrix of size (K,n), where
 
-            K = ml + mq[0] + ... + mq[Nq-1] + ms[0] + ... + ms[Ns-1].
+            K = ml + mq[0] + ... + mq[N-1] + ms[0]**2 + ... + ms[M-1]**2.
 
         Each column of G describes a vector 
 
-            v = ( v_0, v_1, ..., v_{Nq+Ns+1}, vec(v_{Nq+Ns+1}) )
+            v = ( v_0, v_1, ..., v_N, vec(v_{N+1}), ..., vec(v_{N+M}) ) 
 
-        in V = R^ml x R^mq[0] x ... x R^mq[N-1] x S^ms[0] x ... S^ms[Ns-1]
-        stored as a column vector, where S^m denotes symmetric matrices
-        of order m.
+        in V = R^ml x R^mq[0] x ... x R^mq[N-1] x S^ms[0] x ... x S^ms[M-1]
+        stored as a column vector
+
+            [ v_0; v_1; ...; v_N; vec(v_{N+1}); ...; vec(v_{N+M}) ].
+
+        Here, if u is a symmetric matrix of order m, then vec(u) is the 
+        matrix u stored in column major order as a vector of length m**2.
+        We use BLAS unpacked 'L' storage, i.e., the entries in vec(u) 
+        corresponding to the strictly upper triangular entries of u are 
+        not referenced.
 
         h is a dense 'd' matrix of size (K,1), representing a vector in V,
         in the same format as the columns of G.
     
+        A is a dense or sparse 'd' matrix of size (p,n).  The default value
+        is a sparse 'd' matrix of size (0,n).
 
+        b is a dense 'd' matrix of size (p,1).   The default value is a 
+        dense 'd' matrix of size (0,1).
+     
+        Optionally, the interface can write a .task file, required for
+        support questions on the MOSEK solver.
  
     Return values
 
@@ -325,6 +334,9 @@ def conelp(c, G, h, dims = None):
     if min(dims['q'])<1: raise TypeError(
         "dimensions of quadratic cones must be positive")
 
+    if min(dims['s'])<1: raise TypeError(
+        "dimensions of semidefinite cones must be positive")
+
     bkc = n*[ mosek.boundkey.fx ] 
     blc = list(-c)
     buc = list(-c)
@@ -373,40 +385,43 @@ def conelp(c, G, h, dims = None):
 
     numbarvar = len(dims['s'])
     task.appendbarvars(dims['s'])
-    dimxs = dimx + sum([dims['s'][s]*(dims['s'][s] + 1) >> 1 for s in range(numbarvar)])
-
+    
     barcsubj, barcsubk, barcsubl = (inds[-1])*[ 0 ], (inds[-1])*[ 0 ], (inds[-1])*[ 0 ]
     barcval = [ -h[indq[-1]+k] for k in range(inds[0], inds[-1])]
     for s in range(numbarvar):
-        for idx in range(inds[s],inds[s+1]):
-            barcsubk[idx] = idx / dims['s'][s]   
-            barcsubl[idx] = idx % dims['s'][s]
+        for (k,idx) in enumerate(range(inds[s],inds[s+1])):
+            barcsubk[idx] = k / dims['s'][s]   
+            barcsubl[idx] = k % dims['s'][s]
             barcsubj[idx] = s
 
     # filter out upper triangular part
-    trilidx = [ idx for idx in range(len(barcsubk)) if barcsubk[idx] >= barcsubl[idx] ]
+    trilidx  = [ idx for idx in range(len(barcsubk)) if barcsubk[idx] >= barcsubl[idx] ]
     barcsubj = [ barcsubj[k] for k in trilidx ]
     barcsubk = [ barcsubk[k] for k in trilidx ]
     barcsubl = [ barcsubl[k] for k in trilidx ]
     barcval  = [ barcval[k]  for k in trilidx ]
-    
+
     task.putbarcblocktriplet(len(trilidx), barcsubj, barcsubk, barcsubl, barcval)  
     
     Gst = Gs.T
-    barasubi, barasubj, baraval = Gst.I, Gst.J, Gst.V
-    barasubk, barasubl = len(barasubi)*[ 0 ], len(barasubi)*[ 0 ]
+    barasubi = len(Gst)*[ 0 ]
+    barasubj = len(Gst)*[ 0 ]
+    barasubk = len(Gst)*[ 0 ]
+    barasubl = len(Gst)*[ 0 ]
+    baraval  = len(Gst)*[ 0.0 ]
+    colptr, row, val = Gst.CCS 
 
-    colptr = Gst.CCS[0]        
-    for s in range(numbarvar):        
-        idx_start = colptr[inds[s]]
-        idx_stop  = colptr[inds[s+1]]        
-        for idx in range(idx_start,idx_stop):
-            barasubk[idx] = barasubj[idx] / dims['s'][s]   
-            barasubl[idx] = barasubj[idx] % dims['s'][s]
-            barasubj[idx] = s   
+    for s in range(numbarvar):
+        for j in range(ms[s]):
+            for idx in range(colptr[inds[s]+j], colptr[inds[s]+j+1]):
+                barasubi[idx] = row[idx]
+                barasubj[idx] = s
+                barasubk[idx] = j / dims['s'][s]
+                barasubl[idx] = j % dims['s'][s]
+                baraval[idx]  = val[idx]
         
     # filter out upper triangular part
-    trilidx = [ idx for idx in range(len(barasubk)) if barasubk[idx] >= barasubl[idx] ]
+    trilidx = [ idx for (idx, (k,l)) in enumerate(zip(barasubk,barasubl)) if k >= l ]
     barasubi = [ barasubi[k] for k in trilidx ]
     barasubj = [ barasubj[k] for k in trilidx ]
     barasubk = [ barasubk[k] for k in trilidx ]
@@ -418,6 +433,10 @@ def conelp(c, G, h, dims = None):
     for k in range(len(mq)):
         task.appendcone(mosek.conetype.quad, 0.0, 
                         range(ml+sum(mq[:k]),ml+sum(mq[:k+1])))
+        
+    if taskfile:        
+        task.writetask(taskfile)
+        
     task.optimize()
 
     task.solutionsummary (mosek.streamtype.msg); 
@@ -460,7 +479,7 @@ def conelp(c, G, h, dims = None):
 
 
 
-def socp(c, Gl = None, hl = None, Gq = None, hq = None):
+def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
     """
     Solves a pair of primal and dual SOCPs
 
@@ -476,7 +495,7 @@ def socp(c, Gl = None, hl = None, Gq = None, hq = None):
                     
     using MOSEK 8.0.
 
-    solsta, x, zl, zq = socp(c, Gl = None, hl = None, Gq = None, hq = None)
+    solsta, x, zl, zq = socp(c, Gl = None, hl = None, Gq = None, hq = None, taskfile=None)
 
     Return values
 
@@ -508,7 +527,10 @@ def socp(c, Gl = None, hl = None, Gq = None, hq = None):
     
         >>> msk.options = {mosek.iparam.log: 0} 
     
-    see the MOSEK Python API manual.                    
+    see the MOSEK Python API manual.
+    
+    Optionally, the interface can write a .task file, required for
+    support questions on the MOSEK solver.
     """
 
     env = mosek.Env()
@@ -612,6 +634,10 @@ def socp(c, Gl = None, hl = None, Gq = None, hq = None):
     for k in range(len(mq)):
         task.appendcone(mosek.conetype.quad, 0.0, 
                         array(range(ml+sum(mq[:k]),ml+sum(mq[:k+1]))))
+
+    if taskfile:
+        task.writetask(taskfile)
+    
     task.optimize()
 
     task.solutionsummary (mosek.streamtype.msg); 
@@ -640,7 +666,7 @@ def socp(c, Gl = None, hl = None, Gq = None, hq = None):
         return (solsta, x, zl, zq)
 
 
-def qp(P, q, G=None, h=None, A=None, b=None):
+def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
     """
     Solves a quadratic program
 
@@ -650,7 +676,7 @@ def qp(P, q, G=None, h=None, A=None, b=None):
                     
     using MOSEK 8.0.
 
-    solsta, x, z, y = qp(P, q, G=None, h=None, A=None, b=None)
+    solsta, x, z, y = qp(P, q, G=None, h=None, A=None, b=None, taskfile=None)
 
     Return values
 
@@ -681,7 +707,10 @@ def qp(P, q, G=None, h=None, A=None, b=None):
     
         >>> msk.options = {mosek.iparam.log: 0} 
     
-    see the MOSEK Python API manual.                    
+    see the MOSEK Python API manual.      
+    
+    Optionally, the interface can write a .task file, required for
+    support questions on the MOSEK solver.
     """
 
     env = mosek.Env()
@@ -768,6 +797,9 @@ def qp(P, q, G=None, h=None, A=None, b=None):
     
     task.putobjsense(mosek.objsense.minimize)
 
+    if taskfile:
+        task.writetask(taskfile)
+        
     task.optimize()
 
     task.solutionsummary (mosek.streamtype.msg); 
@@ -802,7 +834,7 @@ def qp(P, q, G=None, h=None, A=None, b=None):
         return (solsta, x, z, y)
 
 
-def ilp(c, G, h, A=None, b=None, I=None):
+def ilp(c, G, h, A=None, b=None, I=None, taskfile=None):
     """
     Solves the mixed integer LP
 
@@ -814,7 +846,7 @@ def ilp(c, G, h, A=None, b=None, I=None):
                     
     using MOSEK 8.0.
 
-    solsta, x = ilp(c, G, h, A=None, b=None, I=None).
+    solsta, x = ilp(c, G, h, A=None, b=None, I=None, taskfile=None).
 
     Input arguments 
 
@@ -829,6 +861,8 @@ def ilp(c, G, h, A=None, b=None, I=None):
 
         Dual variables are not returned for MOSEK.
 
+        Optionally, the interface can write a .task file, required for
+        support questions on the MOSEK solver.
 
     Return values
 
@@ -944,6 +978,9 @@ def ilp(c, G, h, A=None, b=None, I=None):
 
     task.putintparam (mosek.iparam.mio_mode, mosek.miomode.satisfied) 
 
+    if taskfile:
+        task.writetask(taskfile)
+        
     task.optimize()
 
     task.solutionsummary (mosek.streamtype.msg); 
