@@ -15,10 +15,10 @@ python:
   - "3.5"
 
 env:  
-  - CVXOPT_SUITESPARSE_EXT_LIB=1 CVXOPT_SUITESPARSE_INC_DIR=/usr/include/suitesparse/
+#  - CVXOPT_SUITESPARSE_EXT_LIB=1 CVXOPT_SUITESPARSE_INC_DIR=/usr/include/suitesparse/
   - CVXOPT_SUITESPARSE_EXT_LIB=0 
   
 install:
   - pip install git+https://github.com/cvxopt/cvxopt@dev
 
-#script: nosetests
+script: python examples/book/chap6/basispursuit.py 
