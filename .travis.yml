@@ -1,0 +1,24 @@
+sudo: required
+
+dist: trusty
+
+before_install:
+  - sudo apt-get install python-dev
+  - sudo apt-get install libblas-dev
+  - sudo apt-get install liblapack-dev
+  - sudo apt-get install libatlas-dev
+  - sudo apt-get install libsuitesparse-dev
+  
+language: python
+python:
+  - "2.7"
+  - "3.5"
+
+env:  
+  - CVXOPT_SUITESPARSE_EXT_LIB=1 CVXOPT_SUITESPARSE_INC_DIR=/usr/include/suitesparse/
+  - CVXOPT_SUITESPARSE_EXT_LIB=0
+  
+install:
+  - pip install git+https://github.com/cvxopt/cvxopt@dev
+
+#script: nosetests
