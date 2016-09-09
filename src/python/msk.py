@@ -144,12 +144,12 @@ def lp(c, G, h, A=None, b=None, taskfile=None):
 
     task.inputdata (m+p, # number of constraints
                     n,   # number of variables
-                    array(c), # linear objective coefficients  
+                    list(c), # linear objective coefficients  
                     0.0, # objective fixed value  
-                    array(aptrb), 
-                    array(aptre), 
-                    array(asub),
-                    array(acof), 
+                    list(aptrb), 
+                    list(aptre), 
+                    list(asub),
+                    list(acof), 
                     bkc,
                     blc,
                     buc, 
@@ -174,7 +174,7 @@ def lp(c, G, h, A=None, b=None, taskfile=None):
     x, z = matrix(x), matrix(z)
     
     if p is not 0:
-        yu, yl = zeros(p, float), zeros(p, float)
+        yu, yl = p*[0.0], p*[0.0]
         task.getsolutionslice(mosek.soltype.bas, mosek.solitem.suc, m, 
             m+p, yu) 
         task.getsolutionslice(mosek.soltype.bas, mosek.solitem.slc, m, 
@@ -588,8 +588,8 @@ def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
         ind += mq[k]
 
     bkc = n*[ mosek.boundkey.fx ] 
-    blc = array(-c)
-    buc = array(-c)
+    blc = list(-c)
+    buc = list(-c)
 
     bkx = ml*[ mosek.boundkey.lo ] + sum(mq)*[ mosek.boundkey.fr ]
     blx = ml*[ 0.0 ] + sum(mq)*[ -inf ]
@@ -616,12 +616,12 @@ def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
 
     task.inputdata (n,   # number of constraints
                     N,   # number of variables
-                    array(c), # linear objective coefficients  
+                    list(c), # linear objective coefficients  
                     0.0, # objective fixed value  
-                    array(aptrb), 
-                    array(aptre), 
-                    array(asub),
-                    array(acof), 
+                    list(aptrb), 
+                    list(aptre), 
+                    list(asub),
+                    list(acof), 
                     bkc,
                     blc,
                     buc, 
@@ -633,7 +633,7 @@ def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
 
     for k in range(len(mq)):
         task.appendcone(mosek.conetype.quad, 0.0, 
-                        array(range(ml+sum(mq[:k]),ml+sum(mq[:k+1]))))
+                        list(range(ml+sum(mq[:k]),ml+sum(mq[:k+1]))))
 
     if taskfile:
         task.writetask(taskfile)
@@ -644,7 +644,7 @@ def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
 
     solsta = task.getsolsta(mosek.soltype.itr)
 
-    xu, xl, zq = zeros(n, float), zeros(n, float), zeros(sum(mq), float)
+    xu, xl, zq = n*[0.0], n*[0.0], sum(mq)*[0.0]
     task.getsolutionslice(mosek.soltype.itr, mosek.solitem.slc, 0, n, xl) 
     task.getsolutionslice(mosek.soltype.itr, mosek.solitem.suc, 0, n, xu) 
     task.getsolutionslice(mosek.soltype.itr, mosek.solitem.xx, ml, N, zq) 
@@ -653,7 +653,7 @@ def socp(c, Gl=None, hl=None, Gq=None, hq=None, taskfile=None):
     zq = [ matrix(zq[sum(mq[:k]):sum(mq[:k+1])]) for k in range(len(mq)) ]
     
     if ml:
-        zl = zeros(ml, float)
+        zl = ml*[0.0]
         task.getsolutionslice(mosek.soltype.itr, mosek.solitem.xx, 0, ml, 
             zl) 
         zl = matrix(zl)
@@ -748,11 +748,11 @@ def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
  
     if m+p is 0: raise ValueError("m + p must be greater than 0")
 
-    c = array(q)        
+    c = list(q)        
 
     bkc = m*[ mosek.boundkey.up ] + p*[ mosek.boundkey.fx ]
     blc = m*[ -inf ] + [ bi for bi in b ]
-    buc = matrix([h, b])
+    buc = list(h)+list(b)
 
     bkx = n*[mosek.boundkey.fr] 
     blx = n*[ -inf ] 
@@ -777,12 +777,12 @@ def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
 
     task.inputdata (m+p, # number of constraints
                     n,   # number of variables
-                    array(c), # linear objective coefficients  
+                    c, # linear objective coefficients  
                     0.0, # objective fixed value  
-                    array(aptrb), 
-                    array(aptre), 
-                    array(asub),
-                    array(acof), 
+                    list(aptrb), 
+                    list(aptre), 
+                    list(asub),
+                    list(acof), 
                     bkc,
                     blc,
                     buc, 
@@ -793,7 +793,7 @@ def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
     Ps = sparse(P)
     I, J = Ps.I, Ps.J
     tril = [ k for k in range(len(I)) if I[k] >= J[k] ]
-    task.putqobj(array(I[tril]), array(J[tril]), array(Ps.V[tril]))
+    task.putqobj(list(I[tril]), list(J[tril]), list(Ps.V[tril]))
     
     task.putobjsense(mosek.objsense.minimize)
 
@@ -806,12 +806,12 @@ def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
 
     solsta = task.getsolsta(mosek.soltype.itr)
 
-    x = zeros(n, float)
+    x = n*[ 0.0 ]
     task.getsolutionslice(mosek.soltype.itr, mosek.solitem.xx, 0, n, x) 
     x = matrix(x)
 
     if m is not 0:
-        z = zeros(m, float)
+        z = m*[0.0]
         task.getsolutionslice(mosek.soltype.itr, mosek.solitem.suc, 0, m, 
             z) 
         z = matrix(z)
@@ -819,7 +819,7 @@ def qp(P, q, G=None, h=None, A=None, b=None, taskfile=None):
         z = matrix(0.0, (0,1))
 
     if p is not 0:
-        yu, yl = zeros(p, float), zeros(p, float)
+        yu, yl = p*[0.0], p*[0.0]
         task.getsolutionslice(mosek.soltype.itr, mosek.solitem.suc, m, m+p,
             yu) 
         task.getsolutionslice(mosek.soltype.itr, mosek.solitem.slc, m, m+p,
@@ -914,8 +914,6 @@ def ilp(c, G, h, A=None, b=None, I=None, taskfile=None):
     if type(b) is not matrix or b.typecode != 'd' or b.size != (p,1): 
         raise TypeError("'b' must be a dense matrix of size (%d,1)" %p)
  
-    c = array(c)        
-
     if I is None: I = set(range(n))
 
     if type(I) is not set: 
@@ -957,12 +955,12 @@ def ilp(c, G, h, A=None, b=None, I=None, taskfile=None):
     
     task.inputdata (m+p, # number of constraints
                     n,   # number of variables
-                    array(c), # linear objective coefficients  
+                    list(c), # linear objective coefficients  
                     0.0, # objective fixed value  
-                    array(aptrb), 
-                    array(aptre), 
-                    array(asub),
-                    array(acof), 
+                    list(aptrb), 
+                    list(aptre), 
+                    list(asub),
+                    list(acof), 
                     bkc,
                     blc,
                     buc, 
@@ -990,7 +988,7 @@ def ilp(c, G, h, A=None, b=None, I=None, taskfile=None):
     else:
         solsta = task.getsolsta(mosek.soltype.bas)
         
-    x = zeros(n, float)
+    x = n*[0.0]
     if len(I) > 0:
         task.getsolutionslice(mosek.soltype.itg, mosek.solitem.xx, 0, n, x) 
     else:

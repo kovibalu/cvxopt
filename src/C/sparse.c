@@ -233,7 +233,7 @@ static ccs * convert_ccs(ccs *src, int id) {
 spmatrix *SpMatrix_NewFromMatrix(matrix *src, int id)
 {
   spmatrix *A;
-  int nnz = 0, i, j;
+  int_t nnz = 0, i, j;
 
   if (id < MAT_ID(src)) PY_ERR_TYPE("illegal type conversion");
 
@@ -305,7 +305,7 @@ spmatrix * sparse_concat(PyObject *L, int id_arg)
 
       if (Matrix_Check(Lij)) {
 
-        int ik, jk;
+        int_t ik, jk;
         for (jk=0; jk<MAT_NCOLS(Lij); jk++) {
           for (ik=0; ik<MAT_NROWS(Lij); ik++) {
 
@@ -392,7 +392,7 @@ spmatrix * sparse_concat(PyObject *L, int id_arg)
             }
           } else if SpMatrix_Check(Lij) {
 
-            int ik;
+            int_t ik;
             for (ik=SP_COL(Lij)[jk]; ik<SP_COL(Lij)[jk+1]; ik++) {
               if ((SP_ID(Lij) == DOUBLE) && (SP_VALD(Lij)[ik] != 0.0)) {
                 if (id == DOUBLE)
