@@ -155,7 +155,7 @@ if SUITESPARSE_EXT_LIB:
     umfpack = Extension('umfpack',
         libraries = ['umfpack','cholmod','amd','colamd','suitesparseconfig'] + LAPACK_LIB + BLAS_LIB + RT_LIB,
         include_dirs = [SUITESPARSE_INC_DIR],
-        library_dirs = [SUITESPARSE_LIB_DIR],
+        library_dirs = [SUITESPARSE_LIB_DIR, BLAS_LIB_DIR],
         sources = ['src/C/umfpack.c'])
 else:
     umfpack = Extension('umfpack',
@@ -181,7 +181,7 @@ if SUITESPARSE_EXT_LIB:
     cholmod = Extension('cholmod',
         libraries = ['cholmod','colamd','amd','suitesparseconfig'] + LAPACK_LIB + BLAS_LIB + RT_LIB,
         include_dirs = [SUITESPARSE_INC_DIR],
-        library_dirs = [SUITESPARSE_LIB_DIR],
+        library_dirs = [SUITESPARSE_LIB_DIR, BLAS_LIB_DIR],
         sources = [ 'src/C/cholmod.c' ])
 else:
     cholmod = Extension('cholmod',

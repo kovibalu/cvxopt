@@ -1,0 +1,65 @@
+environment:
+  global:
+    CVXOPT_BLAS_LIB: "openblas"
+    CVXOPT_LAPACK_LIB: "openblas"
+    CVXOPT_BLAS_LIB_DIR: "C:\\projects\\cvxopt\\OpenBLAS.0.2.14.1\\lib\\native\\lib\\win32"
+
+  matrix:
+
+    # For Python versions available on Appveyor, see
+    # http://www.appveyor.com/docs/installed-software#python
+    - PYTHON: "C:\\Python27"
+
+install:
+  # We need wheel installed to build wheels
+  - set PATH=%PATH%;C:\mingw-w64\i686-5.3.0-posix-dwarf-rt_v4-rev0\mingw32\bin;%PYTHON%;%PYTHON%\Scripts
+  - pip install wheel
+  - nuget install OpenBLAS
+  - dir %CVXOPT_BLAS_LIB_DIR%
+  - python setup.py config --compiler=mingw32
+  - python setup.py build --compiler=mingw32
+  - python setup.py install
+
+build: off
+
+test_script:
+  # Put your test command here.
+  # If you don't need to build C extensions on 64-bit Python 3.3 or 3.4,
+  # you can remove "build.cmd" from the front of the command, as it's
+  # only needed to support those cases.
+  # Note that you must use the environment variable %PYTHON% to refer to
+  # the interpreter you're using - Appveyor does not do anything special
+  # to put the Python version you want to use on PATH.
+  - python -vv -c "from cvxopt import blas,lapack,cholmod,umfpack"
+  - python examples/book/chap6/basispursuit.py 
+  - python examples/doc/chap8/conelp.py
+  - python examples/doc/chap8/coneqp.py
+  - python examples/doc/chap8/lp.py
+  - python examples/doc/chap8/socp.py
+  - python examples/doc/chap8/sdp.py
+  - python examples/doc/chap8/mcsdp.py
+  - python examples/doc/chap8/l1.py
+  - python examples/doc/chap8/l1regls.py
+  - python examples/doc/chap9/gp.py
+  - python examples/doc/chap9/acent.py 
+  - python examples/doc/chap9/acent2.py 
+  - python examples/doc/chap9/l2ac.py
+  - python examples/doc/chap10/lp.py
+  - python examples/doc/chap10/roblp.py
+  - python examples/doc/chap10/l1svc.py
+
+after_test:
+  # This step builds your wheels.
+  # Again, you only need build.cmd if you're building C extensions for
+  # 64-bit Python 3.3/3.4. And you need to use %PYTHON% to get the correct
+  # interpreter
+  - "%PYTHON%\\python.exe setup.py bdist_wheel"
+
+artifacts:
+  # bdist_wheel puts your built wheel in the dist directory
+  - path: dist\*
+
+#on_success:
+#  You can use this step to upload your artifacts to a public website.
+#  See Appveyor's documentation for more details. Or you can simply
+#  access your wheels from the Appveyor "artifacts" tab for your build.
