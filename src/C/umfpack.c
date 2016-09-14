@@ -23,7 +23,7 @@
 #include "umfpack.h"
 #include "misc.h"
 
-#if (SIZEOF_INT < SIZEOF_LONG)
+#if (SIZEOF_INT < SIZEOF_SIZE_T)
 #define UMFD(name) umfpack_dl_ ## name
 #define UMFZ(name) umfpack_zl_ ## name
 #else

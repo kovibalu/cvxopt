@@ -29,7 +29,7 @@
 const int E_SIZE[] = { sizeof(int_t), sizeof(double), sizeof(double complex) };
 
 /* defined in pyconfig.h */
-#if (SIZEOF_INT < SIZEOF_LONG)
+#if (SIZEOF_INT < SIZEOF_SIZE_T)
 #define CHOL(name) cholmod_l_ ## name
 #else
 #define CHOL(name) cholmod_ ## name
