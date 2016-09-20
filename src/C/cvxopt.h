@@ -85,6 +85,9 @@ static void **cvxopt_API;
   (*(spmatrix * (*)(matrix *, matrix *, matrix *, int_t, int_t, int)) \
       cvxopt_API[6])
 #define SpMatrix_Check (*(int * (*)(void *)) cvxopt_API[7])
+#define SpMatrix_NewFromCCSArrays \
+  (*(spmatrix * (*)(matrix *, matrix *, matrix *, int_t, int_t, int)) \
+      cvxopt_API[8])
 
 /* Return -1 and set exception on error, 0 on success. */
 static int

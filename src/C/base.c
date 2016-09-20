@@ -40,6 +40,7 @@ spmatrix * SpMatrix_New(int_t, int_t, int_t, int ) ;
 spmatrix * SpMatrix_NewFromMatrix(matrix *, int) ;
 spmatrix * SpMatrix_NewFromSpMatrix(spmatrix *, int) ;
 spmatrix * SpMatrix_NewFromIJV(matrix *, matrix *, matrix *, int_t, int_t, int) ;
+spmatrix * SpMatrix_NewFromCCSArrays(matrix *, matrix *, matrix *, int_t, int_t, int) ;
 void free_ccs(ccs *);
 int get_id(void *val, int val_type);
 
@@ -940,7 +941,7 @@ sparse(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   PyObject *Objx = NULL;
   static char *kwlist[] = { "x", "tc", NULL};
-  
+
 #if PY_MAJOR_VERSION >= 3
   int tc = 0;
   if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|C:sparse", kwlist,
@@ -1158,6 +1159,52 @@ spdiag(PyTypeObject *type, PyObject *args, PyObject *kwds)
       n += X_NCOLS(Dk);
     }
   }
+  return (PyObject *)ret;
+}
+
+static char doc_spfromccs[] =
+    "Constructs a sparse matrix from CCS (Compressed Column Storage) format.\n\n"
+    "spfromccs(values, colptr, rowind, m, n, id)\n\n"
+    "ARGUMENTS\n"
+    "TODO\n"
+    "x       a single matrix, or a list of matrices and scalars, or a list of\n"
+    "        lists of matrices and scalars\n\n"
+    "tc      typecode character 'd' or 'z'.";
+
+
+static PyObject *
+spfromccs(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  PyObject *values = NULL;
+  PyObject *colptr = NULL;
+  PyObject *rowind = NULL;
+  int m = 0;
+  int n = 0;
+  static char *kwlist[] = { "values", "colptr", "rowind", "m", "n", "tc", NULL};
+
+#if PY_MAJOR_VERSION >= 3
+  int tc = 0;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOii|C:spfromccs", kwlist,
+      &values, &colptr, &rowind, &m, &n, &tc))
+#else
+  char tc = 0;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOii|c:spfromccs", kwlist,
+      &values, &colptr, &rowind, &m, &n, &tc))
+#endif
+    return NULL;
+
+  if (tc && !(VALID_TC_SP(tc))) PY_ERR_TYPE("tc must be 'd' or 'z'");
+  int id = (tc ? TC2ID(tc) : -1);
+
+  spmatrix *ret = NULL;
+  /* a matrix */
+  if (Matrix_Check(values) && Matrix_Check(colptr) && Matrix_Check(rowind)) {
+    id = (id == -1 ? MAX(DOUBLE,MAT_ID(values)) : id);
+    ret = SpMatrix_NewFromCCSArrays((matrix *)values,
+        (matrix *)colptr, (matrix *)rowind, m, n, id);
+  }
+  else PY_ERR_TYPE("invalid matrix initialization");
+
   return (PyObject *)ret;
 }
 
@@ -1868,6 +1915,7 @@ static PyMethodDef base_functions[] = {
         "elementwise maximum between two matrices"},
     {"sparse", (PyCFunction)sparse, METH_VARARGS|METH_KEYWORDS, doc_sparse},
     {"spdiag", (PyCFunction)spdiag, METH_VARARGS|METH_KEYWORDS, doc_spdiag},
+    {"spfromccs", (PyCFunction)spfromccs, METH_VARARGS|METH_KEYWORDS, doc_spfromccs},
     {NULL}		/* sentinel */
 };
 
@@ -1886,12 +1934,12 @@ PyMODINIT_FUNC PyInit_base(void)
 
 #else
 
-#define INITERROR return 
+#define INITERROR return
 PyMODINIT_FUNC initbase(void)
 
 #endif
 {
-  static void *base_API[8];
+  static void *base_API[9];
   PyObject *base_mod, *c_api_object;
 
 #if PY_MAJOR_VERSION >= 3
@@ -1939,6 +1987,7 @@ PyMODINIT_FUNC initbase(void)
   base_API[5] = (void *)SpMatrix_NewFromSpMatrix;
   base_API[6] = (void *)SpMatrix_NewFromIJV;
   base_API[7] = (void *)SpMatrix_Check_func;
+  base_API[8] = (void *)SpMatrix_NewFromCCSArrays;
 
 #if PY_MAJOR_VERSION >= 3
   /* Create a Capsule containing the API pointer array's address */
